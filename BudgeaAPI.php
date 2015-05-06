@@ -221,7 +221,13 @@ class Client {
      * @return mixed
      */
     public function getAccounts($expand = '') {
-        $res = $this->get('/users/me/accounts');
+        if(!empty($expand)){
+            $expandArray = array('expand' => $expand);
+        } else {
+            $expandArray = array();
+        }
+
+        $res = $this->get('/users/me/accounts', $expandArray);
         return $res['accounts'];
     }
 
