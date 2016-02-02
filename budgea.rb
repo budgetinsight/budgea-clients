@@ -42,7 +42,7 @@ module Budgea
 
     def initialize(domain, _settings = {})
       @settings = {
-                            :authorization_endpoint => '/auth/share',
+                            :authorization_endpoint => '/auth/share/',
                             :token_endpoint         => '/auth/token/access',
                             :code_endpoint          => '/auth/token/code',
                             :base_url               => "https://#{domain}/2.0",
