@@ -1,6 +1,6 @@
 # encoding: UTF-8
 
-# Copyright(C) 2014-2015      Budget Insight
+# Copyright(C) 2014-2017      Budget Insight
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,8 @@ module Budgea
                             :http_headers           => {},
                             :client_id              => nil,
                             :client_secret          => nil,
-                            :access_token_param_name=> 'token'
+                            :access_token_param_name=> 'token',
+                            :transfers_endpoint     => '/webview/transfers/accounts'
                       }.merge(_settings)
     end
 
@@ -96,6 +97,18 @@ module Budgea
                               :code          => code_endpoint_response['code']
                             }
       uri = URI.parse("#{@settings[:base_url]}#{@settings[:authorization_endpoint]}")
+      uri.query = URI.encode_www_form(query_string_params)
+      uri.to_s
+    end
+
+    def get_transfers_url(state = '')
+      code_endpoint_response = JSON.parse(get(@settings[:code_endpoint]))
+      query_string_params = {
+                              :redirect_uri  => @settings[:transfers_redirect_uri],
+                              :state         => state,
+                              :code          => code_endpoint_response['code']
+                            }
+      uri = URI.parse("#{@settings[:base_url]}#{@settings[:transfers_endpoint]}")
       uri.query = URI.encode_www_form(query_string_params)
       uri.to_s
     end

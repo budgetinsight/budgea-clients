@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright(C) 2014-2015      Budget Insight
+ * Copyright(C) 2014-2017      Budget Insight
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ namespace Budgea;
 
 /**
  * Class Client
- * v 1.0.2 - 2015-05-05
+ * v 1.1.0 - 2016-12-30
  * @package Budgea
  */
 
@@ -39,6 +39,7 @@ class Client {
             'client_id' => NULL,
             'client_secret' => NULL,
             'access_token_param_name' => 'token',
+            'transfers_endpoint' => '/webview/transfers/accounts'
         );
         $this->settings = array_merge($this->settings, $settings);
     }
@@ -202,8 +203,26 @@ class Client {
             $parameters['redirect_uri'] = $this->settings['redirect_uri'];
         }
         return $this->absurl($this->settings['authorization_endpoint'] . '?' . http_build_query($parameters, null, '&').'#'.$response['code']);
-
     }
+
+    /**
+     * @param string $state
+     * @return string
+     * @throws AuthRequired
+     * @throws InvalidAccessTokenType
+     */
+    public function getTransfersUrl($state = '') {
+        $response = $this->fetch($this->settings['code_endpoint']);
+        $parameters = array(
+            'state' => $state,
+        );
+        if(isset($this->settings['transfers_redirect_uri'])){
+            $paramseters['redirect_uri'] = $this->settings['transfers_redirect_uri'];
+        }
+        return $this->absurl($this->settings['transfers_endpoint'] . '?' . http_build_query($parameters, null, '&').'#'.$response['code']);
+    }
+
+
 
     /**
      * @param $resource_url

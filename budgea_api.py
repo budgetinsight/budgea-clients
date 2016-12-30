@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2014-2015      Budget Insight
+# Copyright(C) 2014-2017      Budget Insight
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -82,6 +82,8 @@ class Client(object):
                          'client_secret':           None,
                          'access_token_param_name': 'token',
                          'redirect_uri':            None,
+                         'transfers_endpoint':      '/webview/transfers/accounts',
+                         'transfers_redirect_uri':  None,
                         }
         self.settings.update(kwargs)
 
@@ -165,6 +167,14 @@ class Client(object):
                   'code':           response['code'],
                  }
         return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
+
+    def get_transfers_url(self, state=''):
+        response = self.fetch(self.settings['code_endpoint'])
+
+        params = {'redirect_uri':   self.settings['transfers_redirect_uri'],
+                  'state':          state,
+                 }
+        return self.absurl('%s?%s#%s' % (self.settings['transfers_endpoint'], urllib.urlencode(params), response['code']))
 
     def get(self, resource_url, params=None):
         return self.fetch(resource_url, params)
