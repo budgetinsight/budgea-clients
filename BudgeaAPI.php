@@ -180,7 +180,7 @@ class Client {
             'state' => $state,
         );
         if(isset($this->settings['redirect_uri'])){
-            $params['redirect_uri'] = $this->settings['redirect_uri'];
+            $parameters['redirect_uri'] = $this->settings['redirect_uri'];
         }
 
         return $this->absurl($this->settings['authorization_endpoint'] . '?' . http_build_query($parameters, null, '&'));
@@ -217,7 +217,7 @@ class Client {
             'state' => $state,
         );
         if(isset($this->settings['transfers_redirect_uri'])){
-            $paramseters['redirect_uri'] = $this->settings['transfers_redirect_uri'];
+            $parameters['redirect_uri'] = $this->settings['transfers_redirect_uri'];
         }
         return $this->absurl($this->settings['transfers_endpoint'] . '?' . http_build_query($parameters, null, '&').'#'.$response['code']);
     }
