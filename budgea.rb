@@ -88,7 +88,7 @@ module Budgea
     end
 
     def get_settings_url(state = '')
-      code_endpoint_response = JSON.parse(get(@settings[:code_endpoint]))
+      code_endpoint_response = JSON.parse(get("#{@settings[:base_url]}#{@settings[:code_endpoint]}"))
       query_string_params = {
                               :response_type => 'code',
                               :client_id     => @settings[:client_id],
