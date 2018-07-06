@@ -1,7 +1,6 @@
 <?php
-
 /*
- * Copyright(C) 2014-2017      Budget Insight
+ * Copyright(C) 2014-2018      Budget Insight
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,101 +19,120 @@ namespace Budgea;
 
 /**
  * Class Client
- * v 1.1.0 - 2016-12-30
+ * v 1.1.1 - 2018-07-05
  * @package Budgea
  */
 
 class Client {
 
-    protected $settings;
-    protected $access_token;
-    protected $access_token_type = "bearer"; // default token type is Bearer
+	protected $settings;
+	protected $access_token;
+	protected $access_token_type = 'Bearer';
+	protected $access_token_param_name = 'token';
 
-    public function __construct($domain, $settings = array()) {
-        $this->settings = array('authorization_endpoint' => '/auth/share/',
-            'token_endpoint' => '/auth/token/access',
-            'code_endpoint' => '/auth/token/code',
-            'base_url' => 'https://' . $domain . '/2.0',
-            'http_headers' => array(),
-            'client_id' => NULL,
-            'client_secret' => NULL,
-            'access_token_param_name' => 'token',
-            'transfers_endpoint' => '/webview/transfers/accounts'
-        );
-        $this->settings = array_merge($this->settings, $settings);
-    }
+	public function __construct($domain, $settings = []) {
+		$this->settings = [
+			'base_url' => 'https://'. $domain .'/2.0',
+			'endpoints' => [
+				'authorization' => '/auth/share/',
+				'token' => '/auth/token/access',
+				'code' => '/auth/token/code',
+				'transfers' => '/webview/transfers/accounts'
+			],
+			'client_id' => NULL,
+			'client_secret' => NULL,
+		];
+		$this->settings = array_merge($this->settings, $settings);
+	}
 
-    /**
+	/**
      * @param $client_id
      */
-    public function setClientId($client_id) {
-        $this->settings['client_id'] = $client_id;
-    }
+	public function setClientId($client_id) {
+		$this->settings['client_id'] = $client_id;
+	}
 
-    /**
+	/**
      * @param $client_secret
      */
-    public function setClientSecret($client_secret) {
-        $this->settings['client_secret'] = $client_secret;
-    }
+	public function setClientSecret($client_secret) {
+		$this->settings['client_secret'] = $client_secret;
+	}
 
-    /**
+	/**
      * @param $token
      */
-    public function setAccessToken($token) {
-        $this->access_token = $token;
-    }
+	public function setAccessToken($token) {
+		$this->access_token = $token;
+	}
 
-    /**
+	/**
      * @return mixed
      */
-    public function getAccessToken() {
-        return $this->access_token;
-    }
+	public function getAccessToken($token) {
+		return $this->access_token;
+	}
 
     /**
-     * @param null $state
-     * @return bool
-     * @throws AuthFailed
-     * @throws ConnectionError
-     * @throws StateInvalid
+     * @param $resource_url
+     * @param array $params
+     * @return array
+     * @throws AuthRequired
+     * @throws InvalidAccessTokenType
      */
-    public function handleCallback($state = NULL) {
-        if (isset($_GET['error']))
-            throw new AuthFailed($_GET['error']);
+    public function get($resource_url, $params = []) {
+    	return $this->fetch($resource_url, $params);
+    }
+    
+    /**
+     * @param $url
+     * @return string
+     */
+    public function absurl($url) {
+    	$url = $url[0] == '/' ? $this->settings['base_url'] . $url : $url;
 
-        if (!isset($_GET['code']))
-            return FALSE;
-
-        if ($state !== NULL && (!isset($_GET['state']) || $_GET['state'] != $state))
-            throw new StateInvalid();
-
-        $params = array('code' => $_GET['code']);
-        if(isset($this->settings['redirect_uri'])){
-            $params['redirect_uri'] = $this->settings['redirect_uri'];
-        }
-
-        $params['grant_type'] = 'authorization_code';
-        $http_headers = array();
-        $http_headers['Authorization'] = 'Basic ' . base64_encode($this->settings['client_id'] . ':' . $this->settings['client_secret']);
-
-        $response = $this->executeRequest($this->settings['token_endpoint'], $params, 'POST', $http_headers);
-
-        if (isset($response['result']['error']))
-            throw new AuthFailed($response['result']['error']);
-
-        $this->access_token = $response['result']['access_token'];
-        $this->access_token_type = strtolower($response['result']['token_type']);
-
-        return $state || TRUE;
+    	return $url;
     }
 
-    /**
+	/**
+	 * @param null $state
+	 * @return bool
+	 * @throws AuthFailed
+	 * @throws ConnectionError
+	 * @throws StateInvalid
+	 */
+	public function handleCallback($state = NULL) {
+		if (isset($_GET['error']))
+			throw new AuthFailed($_GET['error']);
+		if (!isset($_GET['code']))
+			return FALSE;
+		if ($state !== NULL && (!isset($_GET['state']) || $_GET['state'] != $state))
+            throw new StateInvalid();
+		
+		$params = ['code' => $_GET['code']];
+		if (isset($this->settings['redirect_uri']))
+			$params['redirect_uri'] = $this->settings['redirect_uri'];
+
+		$params['grant_type'] = 'authorization_code';
+		$http_headers = [
+			'Authorization' => 'Basic '. base64_encode($this->settings['client_id']) .':'. $this->settings['client_secret']
+		];
+		$response = $this->executeRequest($this->settings['endpoints']['token'], $params, 'POST', $http_headers);
+
+		if (isset($response['result']['error']))
+			throw new AuthFailed($response['result']['error']);
+		$this->access_token = $response['result']['access_token'];
+		$this->acess_token_type = strtolower($response['result']['token_type']);
+
+		return $state || TRUE;
+	}
+	
+	/**
      * @param string $text
      * @param string $state
      * @return string
      */
-    public function getAuthenticationButton($text = 'Partager ses comptes', $state = '') {
+	public function getAuthenticationButton($text = 'Partager ses comptes', $state = '') {
         $button = '<a href="' . htmlentities($this->getAuthenticationUrl($state)) . '"
                     style="background: #ff6100;
                            color: #fff;
@@ -173,17 +191,17 @@ class Client {
      * @param string $state
      * @return string
      */
-    public function getAuthenticationUrl($state = '') {
-        $parameters = array(
-            'response_type' => 'code',
-            'client_id' => $this->settings['client_id'],
-            'state' => $state,
-        );
-        if(isset($this->settings['redirect_uri'])){
-            $parameters['redirect_uri'] = $this->settings['redirect_uri'];
-        }
+    public function getAuthenticationUrl($state = '', $types = 'banks') {
+    	$params = [
+    		'response_type' => 'code',
+    		'client_id' => $this->settings['client_id'],
+    		'state' => $state,
+    	];
 
-        return $this->absurl($this->settings['authorization_endpoint'] . '?' . http_build_query($parameters, null, '&'));
+    	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
+    	!isset($this->settings['types']) ?: $params['types'] = $this->settings['types'];
+
+    	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&'));
     }
 
     /**
@@ -192,47 +210,34 @@ class Client {
      * @throws AuthRequired
      * @throws InvalidAccessTokenType
      */
+
     public function getSettingsUrl($state = '') {
-        $response = $this->fetch($this->settings['code_endpoint']);
-        $parameters = array(
-            'response_type' => 'code',
-            'client_id' => $this->settings['client_id'],
-            'state' => $state,
-        );
-        if(isset($this->settings['redirect_uri'])){
-            $parameters['redirect_uri'] = $this->settings['redirect_uri'];
-        }
-        return $this->absurl($this->settings['authorization_endpoint'] . '?' . http_build_query($parameters, null, '&').'#'.$response['code']);
-    }
+    	$response = $this->fetch($this->settings['endpoints']['code']);
+    	$params = [
+    		'response_type' => 'code',
+    		'client_id' => $this->settings['client_id'],
+    		'state' => $state
+    	];
 
+    	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
+
+    	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    }
     /**
-     * @param string $state
-     * @return string
-     * @throws AuthRequired
-     * @throws InvalidAccessTokenType
-     */
+	 * @param string $state
+	 * @return string
+	 * @throws AuthRequired
+	 * @throws InvalidAccessTokenType
+	 */
     public function getTransfersUrl($state = '') {
-        $response = $this->fetch($this->settings['code_endpoint']);
-        $parameters = array(
-            'state' => $state,
-        );
-        if(isset($this->settings['transfers_redirect_uri'])){
-            $parameters['redirect_uri'] = $this->settings['transfers_redirect_uri'];
-        }
-        return $this->absurl($this->settings['transfers_endpoint'] . '?' . http_build_query($parameters, null, '&').'#'.$response['code']);
-    }
+    	$response = $this->fetch($this->settings['endpoints']['code']);
+    	$params = [
+    		'state' => $state
+    	];
 
+    	!isset($this->settings['transfers_redirect_uri']) ?: $params['redirect_uri'] = $this->settings['transfers_redirect_uri'];
 
-
-    /**
-     * @param $resource_url
-     * @param array $parameters
-     * @return array
-     * @throws AuthRequired
-     * @throws InvalidAccessTokenType
-     */
-    public function get($resource_url, $parameters = array()) {
-        return $this->fetch($resource_url, $parameters);
+    	return $this->absurl($this->settings['endpoints']['transfers'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
     }
 
     /**
@@ -240,14 +245,10 @@ class Client {
      * @return mixed
      */
     public function getAccounts($expand = '') {
-        if(!empty($expand)){
-            $expandArray = array('expand' => $expand);
-        } else {
-            $expandArray = array();
-        }
+    	$expandArray = !empty($expand) ? ['expand' => $expand] : [];
+    	$res = $this->get('/users/me/accounts', $expandArray);
 
-        $res = $this->get('/users/me/accounts', $expandArray);
-        return $res['accounts'];
+    	return $res['accounts'];
     }
 
     /**
@@ -255,28 +256,17 @@ class Client {
      * @return mixed
      */
     public function getTransactions($account_id = '') {
-        if ($account_id)
-            $res = $this->get('/users/me/accounts/' . $account_id . '/transactions', array('expand' => 'category'));
+    	if ($account_id)
+            $res = $this->get('/users/me/accounts/' . $account_id . '/transactions', ['expand' => 'category']);
         else
-            $res = $this->get('/users/me/transactions', array('expand' => 'category'));
+            $res = $this->get('/users/me/transactions', ['expand' => 'category']);
 
         return $res['transactions'];
     }
 
     /**
-     * @param $url
-     * @return string
-     */
-    public function absurl($url) {
-        if ($url[0] == '/')
-            $url = $this->settings['base_url'] . $url;
-
-        return $url;
-    }
-
-    /**
      * @param $protected_resource_url
-     * @param array $parameters
+     * @param array $params
      * @param string $http_method
      * @param array $http_headers
      * @return array
@@ -284,148 +274,129 @@ class Client {
      * @throws ConnectionError
      * @throws InvalidAccessTokenType
      */
-    public function fetch($protected_resource_url, $parameters = array(), $http_method = 'GET', array $http_headers = array()) {
-        $http_headers = array_merge($this->settings['http_headers'], $http_headers);
+    public function fetch($protected_resource_url, $params = [], $http_method = 'GET', $http_headers = []) {
+    	$http_headers = array_merge($this->settings['http_headers'], $http_headers);
+    	$protected_resource_url = $this->absurl($protected_resource_url);
 
-        $protected_resource_url = $this->absurl($protected_resource_url);
+    	if ($this->access_token):
+    		switch ($this->access_token_type):
+    			case 'url':
+    				if (is_array($params))
+    					$params[$this->settings['access_token_param_name']] = $this->access_token;
+    				else
+    					throw new RequireParamsAsArray('You need to give parameters as array if you want to give the token within the URI.');
+    				break;
+    			case 'bearer':
+    				$http_headers['Authorization'] = 'Bearer ' . $this->access_token;
+    				break;
+    			case 'oauth':
+    				$http_headers['Authorization'] = 'OAuth ' . $this->access_token;
+    			default:
+    				throw new InvalidAccessTokenType();
+    				break;
+    		endswitch;
+    	endif;
 
-        if ($this->access_token) {
-            switch ($this->access_token_type) {
-                case 'url':
-                    if (is_array($parameters)) {
-                        $parameters[$this->settings['access_token_param_name']] = $this->access_token;
-                    } else {
-                        throw new RequireParamsAsArray('You need to give parameters as array if you want to give the token within the URI.');
-                    }
-                    break;
-                case 'bearer':
-                    $http_headers['Authorization'] = 'Bearer ' . $this->access_token;
-                    break;
-                case 'oauth':
-                    $http_headers['Authorization'] = 'OAuth ' . $this->access_token;
-                    break;
-                default:
-                    throw new InvalidAccessTokenType();
-                    break;
-            }
-        }
+    	$r = $this->executeRequest($protected_resource_url, $params, $http_method, $http_headers);
+    	switch ($r['code']):
+    		case 200:
+    			return $r['result'];
+    			break;
+    		case 401:
+    		case 403:
+    			throw new AuthRequired();
+    			break;
+    	endswitch;
 
-        $r = $this->executeRequest($protected_resource_url, $parameters, $http_method, $http_headers);
-        switch ($r['code']) {
-            case 200:
-                return $r['result'];
-                break;
-            case 401:
-            case 403:
-                throw new AuthRequired();
-                break;
-        }
-        return $r;
+    	return $r;
     }
 
-    /**
+     /**
      * @param $url
-     * @param array $parameters
+     * @param array $params
      * @param string $http_method
      * @param array $http_headers
      * @return array
      * @throws ConnectionError
      */
-    private function executeRequest($url, $parameters = array(), $http_method = 'GET', array $http_headers = null) {
-        $curl_options = array(
-            CURLOPT_RETURNTRANSFER => true,
+
+    private function executeRequest($url, $params = [], $http_method = 'GET', array $http_headers = []) {
+     	$curl_options = [
+     		CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_CUSTOMREQUEST => $http_method
-        );
+     	];
+     	$url = $this->absurl($url);
 
-        $url = $this->absurl($url);
-
-        switch ($http_method) {
-            case 'POST':
-                $curl_options[CURLOPT_POST] = true;
-            /* No break */
-            case 'PUT':
-            case 'PATCH':
-
-                /**
+     	switch ($http_method):
+     		case 'POST':
+     			$curl_options[CURLOPT_POST] = TRUE;
+     		case 'PUT':
+     		case 'PATCH':
+     			/**
                  * Passing an array to CURLOPT_POSTFIELDS will encode the data as multipart/form-data,
                  * while passing a URL-encoded string will encode the data as application/x-www-form-urlencoded.
                  * http://php.net/manual/en/function.curl-setopt.php
                  */
-                if (is_array($parameters)) {
-                    $parameters = http_build_query($parameters, null, '&');
-                }
-                $curl_options[CURLOPT_POSTFIELDS] = $parameters;
-                break;
-            case 'HEAD':
-                $curl_options[CURLOPT_NOBODY] = true;
-            /* No break */
-            case 'DELETE':
-            case 'GET':
-                if ($parameters)
-                    $url .= '?' . (is_array($parameters) ? http_build_query($parameters, null, '&') : $parameters);
-                break;
-            default:
-                break;
-        }
+     			if (is_array($params))
+     				$params = http_build_query($params, NULL, '&');
+     			$curl_options[CURLOPT_POSTFIELDS] = $params;
+     			break;
+     		case 'HEAD':
+     			$curl_options[CURLOPT_NOBODY] = TRUE;
+     		case 'DELETE':
+     		case 'GET':
+     			!$params ?: $url .= '?' . (is_array($params) ? http_build_query($params, NULL, '&') : $params);
+     		default:
+     			break;
+     	endswitch;
 
-        $curl_options[CURLOPT_URL] = $url;
+     	$curl_options[CURLOPT_URL] = $url;
 
-        if (is_array($http_headers)) {
-            $header = array();
-            foreach ($http_headers as $key => $parsed_urlvalue) {
-                $header[] = "$key: $parsed_urlvalue";
-            }
-            $curl_options[CURLOPT_HTTPHEADER] = $header;
-        }
+     	if (is_array($http_headers)) {
+     		$header = [];
+     		foreach ($http_headers as $key => $value)
+     			$header[] = "$key: $value";
+     		$curl_options[CURLOPT_HTTPHEADER] = $header;
+     	}
 
-        $ch = curl_init();
-        curl_setopt_array($ch, $curl_options);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+     	$ch = curl_init();
+     	curl_setopt_array($ch, $curl_options);
+     	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, TRUE);
+     	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
-        $result = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-        if ($curl_error = curl_error($ch)) {
-            throw new ConnectionError($curl_error);
-        } else {
-            $json_decode = json_decode($result, true);
-        }
-        curl_close($ch);
+     	$result = curl_exec($ch);
+     	$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+     	$content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
 
-        return array(
-            'result' => (null === $json_decode) ? $result : $json_decode,
-            'code' => $http_code,
-            'content_type' => $content_type
-        );
+     	if ($curl_error = curl_error($ch))
+     		throw new ConnectionError($curl_error);
+     	else
+     		$decode = json_decode($result, TRUE);
+     	curl_close($ch);
+
+     	return [
+     		'result' => (NULL == $json_decode) ? $result : $json_decode,
+     		'code' => $http_code,
+     		'content_type' => $content_type,
+     	];
     }
-
-
 }
 
 class Exception extends \Exception {
 }
-
 class ConnectionError extends Exception {
 }
-
 class InvalidAccessTokenType extends Exception {
 }
-
 class NoPermission extends Exception {
 }
-
 class AuthRequired extends Exception {
 }
-
 class AuthFailed extends Exception {
 }
-
 class StateInvalid extends Exception {
 }
-
 class RequireParamsAsArray extends \InvalidArgumentException {
 }
-
 ?>
