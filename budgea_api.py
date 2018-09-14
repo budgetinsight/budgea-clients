@@ -73,7 +73,7 @@ class Client(object):
         self.access_token = None
         self.access_token_type = 'bearer'
 
-        self.settings = {'authorization_endpoint':  '/auth/share/',
+        self.settings = {'authorization_endpoint':  '/auth/webview/',
                          'token_endpoint':          '/auth/token/access',
                          'code_endpoint':           '/auth/token/code',
                          'base_url':                'https://%s/2.0' % domain,
@@ -84,6 +84,7 @@ class Client(object):
                          'redirect_uri':            None,
                          'transfers_endpoint':      '/webview/transfers/accounts',
                          'transfers_redirect_uri':  None,
+                         'types':                   None,
                         }
         self.settings.update(kwargs)
 
@@ -154,6 +155,7 @@ class Client(object):
                   'client_id':      self.settings['client_id'],
                   'redirect_uri':   self.settings['redirect_uri'],
                   'state':          state,
+                  'types':          self.settings['types'],
                  }
         return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
 
@@ -165,6 +167,7 @@ class Client(object):
                   'redirect_uri':   self.settings['redirect_uri'],
                   'state':          state,
                   'code':           response['code'],
+                  'types':          self.settings['types'],
                  }
         return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
 

@@ -32,15 +32,16 @@ class Client {
 
 	public function __construct($domain, $settings = []) {
 		$this->settings = [
-			'base_url' => 'https://'. $domain .'/2.0',
+			'base_url' => 'https://' . $domain . '/2.0',
 			'endpoints' => [
-				'authorization' => '/auth/share/',
+				'authorization' => '/auth/webview/',
 				'token' => '/auth/token/access',
 				'code' => '/auth/token/code',
 				'transfers' => '/webview/transfers/accounts'
 			],
 			'client_id' => NULL,
 			'client_secret' => NULL,
+			'http_headers' => [],
 		];
 		$this->settings = array_merge($this->settings, $settings);
 	}
@@ -83,7 +84,7 @@ class Client {
     public function get($resource_url, $params = []) {
     	return $this->fetch($resource_url, $params);
     }
-    
+
     /**
      * @param $url
      * @return string
@@ -108,15 +109,12 @@ class Client {
 			return FALSE;
 		if ($state !== NULL && (!isset($_GET['state']) || $_GET['state'] != $state))
             throw new StateInvalid();
-		
-		$params = ['code' => $_GET['code']];
+
+		$params = ['code' => $_GET['code'], 'client_id' => $this->settings['client_id'], 'client_secret' => $this->settings['client_secret']];
 		if (isset($this->settings['redirect_uri']))
 			$params['redirect_uri'] = $this->settings['redirect_uri'];
 
-		$params['grant_type'] = 'authorization_code';
-		$http_headers = [
-			'Authorization' => 'Basic '. base64_encode($this->settings['client_id']) .':'. $this->settings['client_secret']
-		];
+		$http_headers = [];
 		$response = $this->executeRequest($this->settings['endpoints']['token'], $params, 'POST', $http_headers);
 
 		if (isset($response['result']['error']))
@@ -126,14 +124,14 @@ class Client {
 
 		return $state || TRUE;
 	}
-	
+
 	/**
      * @param string $text
      * @param string $state
      * @return string
      */
 	public function getAuthenticationButton($text = 'Partager ses comptes', $state = '') {
-        $button = '<a href="' . htmlentities($this->getAuthenticationUrl($state)) . '"
+        $button = '<a href="' . $this->getAuthenticationUrl($state) . '"
                     style="background: #ff6100;
                            color: #fff;
                            font-size: 14px;
@@ -220,6 +218,7 @@ class Client {
     	];
 
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
+			!isset($this->settings['types']) ?: $params['types'] = $this->settings['types'];
 
     	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
     }
@@ -282,11 +281,11 @@ class Client {
     		switch ($this->access_token_type):
     			case 'url':
     				if (is_array($params))
-    					$params[$this->settings['access_token_param_name']] = $this->access_token;
+    					$params[$this->access_token_param_name] = $this->access_token;
     				else
     					throw new RequireParamsAsArray('You need to give parameters as array if you want to give the token within the URI.');
     				break;
-    			case 'bearer':
+    			case 'Bearer':
     				$http_headers['Authorization'] = 'Bearer ' . $this->access_token;
     				break;
     			case 'oauth':
@@ -376,7 +375,7 @@ class Client {
      	curl_close($ch);
 
      	return [
-     		'result' => (NULL == $json_decode) ? $result : $json_decode,
+     		'result' => (NULL == $decode) ? $result : $decode,
      		'code' => $http_code,
      		'content_type' => $content_type,
      	];
