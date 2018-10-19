@@ -34,16 +34,22 @@ class Client {
 		$this->settings = [
 			'base_url' => 'https://' . $domain . '/2.0',
 			'endpoints' => [
-				'authorization' => '/auth/webview/',
+				'authorization' => '/auth/share/',
 				'token' => '/auth/token/access',
 				'code' => '/auth/token/code',
-				'transfers' => '/webview/transfers/accounts'
+				'transfers' => '/webview/transfers/accounts',
+				'settings' => ''
 			],
 			'client_id' => NULL,
 			'client_secret' => NULL,
 			'http_headers' => [],
 		];
 		$this->settings = array_merge($this->settings, $settings);
+
+		if (isset($settings['webview']) && $settings['webview'] == 'v2'):
+			$this->settings['endpoints']['authorization'] = '/auth/webview/connect/select/';
+			$this->settings['endpoints']['settings'] = '/auth/webview/accounts';
+		endif;
 	}
 
 	/**
@@ -70,7 +76,7 @@ class Client {
 	/**
      * @return mixed
      */
-	public function getAccessToken($token) {
+	public function getAccessToken() {
 		return $this->access_token;
 	}
 
@@ -84,7 +90,7 @@ class Client {
     public function get($resource_url, $params = []) {
     	return $this->fetch($resource_url, $params);
     }
-
+    
     /**
      * @param $url
      * @return string
@@ -109,7 +115,7 @@ class Client {
 			return FALSE;
 		if ($state !== NULL && (!isset($_GET['state']) || $_GET['state'] != $state))
             throw new StateInvalid();
-
+		
 		$params = ['code' => $_GET['code'], 'client_id' => $this->settings['client_id'], 'client_secret' => $this->settings['client_secret']];
 		if (isset($this->settings['redirect_uri']))
 			$params['redirect_uri'] = $this->settings['redirect_uri'];
@@ -124,7 +130,7 @@ class Client {
 
 		return $state || TRUE;
 	}
-
+	
 	/**
      * @param string $text
      * @param string $state
@@ -194,10 +200,10 @@ class Client {
     		'response_type' => 'code',
     		'client_id' => $this->settings['client_id'],
     		'state' => $state,
+        'types' => $types,
     	];
 
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
-    	!isset($this->settings['types']) ?: $params['types'] = $this->settings['types'];
 
     	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&'));
     }
@@ -218,9 +224,12 @@ class Client {
     	];
 
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
-			!isset($this->settings['types']) ?: $params['types'] = $this->settings['types'];
 
-    	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    	if (isset($this->settings['endpoints']['settings']) && $this->settings['endpoints']['settings'] != NULL):
+    		return $this->absurl($this->settings['endpoints']['settings'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    	else:
+    		return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    	endif;
     }
     /**
 	 * @param string $state
