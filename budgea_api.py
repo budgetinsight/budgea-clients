@@ -76,6 +76,7 @@ class Client(object):
         self.settings = {'authorization_endpoint':  '/auth/webview/',
                          'token_endpoint':          '/auth/token/access',
                          'code_endpoint':           '/auth/token/code',
+                         'temp_token_endpoint':     '/auth/token/temp',
                          'base_url':                'https://%s/2.0' % domain,
                          'http_headers':            {'User-Agent': 'BudgeaAPI Client/%s' % self.VERSION},
                          'client_id':               None,
@@ -110,7 +111,7 @@ class Client(object):
         p['grant_ type'] = 'authorization_code'
 
         headers = {}
-        headers['Authorization'] = 'Basic %s' % b64encode('%s:%s:' % (self.settings['client_id'], self.settings['client_secret']))
+        headers['Authorization'] = 'Basic %s' % b64encode('%s:%s' % (self.settings['client_id'], self.settings['client_secret']))
 
         response = self.fetch(self.settings['token_endpoint'], p, 'POST', headers)
 
@@ -160,24 +161,23 @@ class Client(object):
         return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
 
     def get_settings_url(self, state=''):
-        response = self.fetch(self.settings['code_endpoint'])
+        token = self.get_temp_token()
 
         params = {'response_type':  'code',
                   'client_id':      self.settings['client_id'],
                   'redirect_uri':   self.settings['redirect_uri'],
                   'state':          state,
-                  'code':           response['code'],
                   'types':          self.settings['types'],
                  }
-        return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
+        return self.absurl('%s?%s#%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params), token))
 
     def get_transfers_url(self, state=''):
-        response = self.fetch(self.settings['code_endpoint'])
+        token = self.get_temp_token()
 
         params = {'redirect_uri':   self.settings['transfers_redirect_uri'],
                   'state':          state,
                  }
-        return self.absurl('%s?%s#%s' % (self.settings['transfers_endpoint'], urllib.urlencode(params), response['code']))
+        return self.absurl('%s?%s#%s' % (self.settings['transfers_endpoint'], urllib.urlencode(params), token))
 
     def get(self, resource_url, params=None):
         return self.fetch(resource_url, params)
@@ -240,3 +240,7 @@ class Client(object):
         request.get_method = lambda: http_method
 
         return opener.open(request)
+
+    def get_temp_token(self):
+        temp_response = self.fetch(self.settings['code_endpoint'], params={'scope': 'temp_token'}, http_method='POST')
+        return self.fetch(self.settings['temp_token_endpoint'], params={'code': temp_response['code']}, http_method='POST')['auth_token']

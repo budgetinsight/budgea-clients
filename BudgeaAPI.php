@@ -37,6 +37,7 @@ class Client {
 				'authorization' => '/auth/share/',
 				'token' => '/auth/token/access',
 				'code' => '/auth/token/code',
+				'temp' => '/auth/token/temp',
 				'transfers' => '/webview/transfers/accounts',
 				'settings' => ''
 			],
@@ -216,7 +217,7 @@ class Client {
      */
 
     public function getSettingsUrl($state = '') {
-    	$response = $this->fetch($this->settings['endpoints']['code']);
+			$token = $this->getTempToken();
     	$params = [
     		'response_type' => 'code',
     		'client_id' => $this->settings['client_id'],
@@ -226,9 +227,9 @@ class Client {
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
 
     	if (isset($this->settings['endpoints']['settings']) && $this->settings['endpoints']['settings'] != NULL):
-    		return $this->absurl($this->settings['endpoints']['settings'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    		return $this->absurl($this->settings['endpoints']['settings'] . '?' . http_build_query($params, NULL, '&') . '#' . $token);
     	else:
-    		return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    		return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $token);
     	endif;
     }
     /**
@@ -238,14 +239,14 @@ class Client {
 	 * @throws InvalidAccessTokenType
 	 */
     public function getTransfersUrl($state = '') {
-    	$response = $this->fetch($this->settings['endpoints']['code']);
+			$token = $this->getTempToken();
     	$params = [
     		'state' => $state
     	];
 
     	!isset($this->settings['transfers_redirect_uri']) ?: $params['redirect_uri'] = $this->settings['transfers_redirect_uri'];
 
-    	return $this->absurl($this->settings['endpoints']['transfers'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    	return $this->absurl($this->settings['endpoints']['transfers'] . '?' . http_build_query($params, NULL, '&') . '#' . $token);
     }
 
     /**
@@ -388,6 +389,17 @@ class Client {
      		'code' => $http_code,
      		'content_type' => $content_type,
      	];
+    }
+
+		/**
+     * @return array
+     * @throws AuthRequired
+     * @throws InvalidAccessTokenType
+     */
+
+    public function getTempToken() {
+    	$temp_response = $this->fetch($this->settings['endpoints']['code'], ['scope' => 'temp_token'], 'POST');
+			return $this->fetch($this->settings['endpoints']['temp'], ['code' => $temp_response['code']], 'POST')['auth_token'];
     }
 }
 

@@ -71,6 +71,7 @@ module Budgea
         authorization_endpoint: '/auth/webview/',
         token_endpoint: '/auth/token/access',
         code_endpoint: '/auth/token/code',
+        temp_token_endpoint: '/auth/token/temp',
         base_url: "https://#{domain}/2.0",
         http_headers: { 'User-Agent': "BudgeaAPI Client #{VERSION}" },
         client_id: nil,
@@ -161,32 +162,29 @@ module Budgea
     end
 
     def get_settings_url(state = '', types: nil)
-      code_endpoint_response = get(@settings[:code_endpoint])
-      code_endpoint_response = JSON.parse(code_endpoint_response) if code_endpoint_response.is_a?(String)
+      token = get_temp_token()
 
       query_string_params = {
         response_type: 'code',
         client_id: @settings[:client_id],
         redirect_uri: @settings[:redirect_uri],
-        state: state,
-        code: code_endpoint_response['code']
+        state: state
       }
       query_string_params[:types] = types.to_s if types.present?
 
-      endpoint_uri_with_params(@settings[:authorization_endpoint], query_string_params)
+      url =
+      [endpoint_uri_with_params(@settings[:authorization_endpoint], query_string_params), '#', token].join()
     end
 
     def get_transfers_url(state = '')
-      code_endpoint_response = get(@settings[:code_endpoint])
-      code_endpoint_response = JSON.parse(code_endpoint_response) if code_endpoint_response.is_a?(String)
+      token = get_temp_token()
 
       query_string_params = {
         redirect_uri: @settings[:transfers_redirect_uri],
-        state: state,
-        code: code_endpoint_response['code']
+        state: state
       }
 
-      endpoint_uri_with_params(@settings[:transfers_endpoint], query_string_params)
+      [endpoint_uri_with_params(@settings[:transfers_endpoint], query_string_params), '#', token].join()
     end
 
     def get(uri, params = {})
@@ -259,6 +257,19 @@ module Budgea
       uri = URI.parse(endpoint_url)
       uri.query = URI.encode_www_form(query_string_params)
       uri.to_s
+    end
+
+    def get_temp_token()
+      uri = URI.parse(@settings[:base_url] + @settings[:code_endpoint])
+      resource = ::RestClient::Resource.new uri.to_s
+      temp_response = resource.post({scope: 'temp_token'}, headers={'Authorization': 'Bearer %s' % [@access_token]})
+      temp_response = JSON.parse(temp_response) if temp_response.is_a?(String)
+
+      uri = URI.parse(@settings[:base_url] + @settings[:temp_token_endpoint])
+      resource = ::RestClient::Resource.new uri.to_s
+      response = resource.post({code: temp_response['code']}, headers={'Authorization': 'Bearer %s' % [@access_token]})
+      response = JSON.parse(response) if response.is_a?(String)
+      response['auth_token']
     end
   end
 
