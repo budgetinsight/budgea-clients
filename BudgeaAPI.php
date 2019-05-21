@@ -27,7 +27,7 @@ class Client {
 
 	protected $settings;
 	protected $access_token;
-	protected $access_token_type = 'Bearer';
+	protected $access_token_type = 'bearer';
 	protected $access_token_param_name = 'token';
 
 	public function __construct($domain, $settings = []) {
