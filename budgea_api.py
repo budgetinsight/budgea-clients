@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2014-2017      Budget Insight
+# Copyright(C) 2014-2020      Budget Insight
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,13 +67,14 @@ class Account(object):
 
 
 class Client(object):
-    VERSION = '2.0.0'
+    VERSION = '2.1.0'
 
     def __init__(self, domain, **kwargs):
         self.access_token = None
         self.access_token_type = 'bearer'
 
-        self.settings = {'authorization_endpoint':  '/auth/webview/',
+        self.settings = {'connect_endpoint':        '/auth/webview/connect',
+                         'manage_endpoint':         '/auth/webview/manage',
                          'token_endpoint':          '/auth/token/access',
                          'code_endpoint':           '/auth/token/code',
                          'base_url':                'https://%s/2.0' % domain,
@@ -82,9 +83,9 @@ class Client(object):
                          'client_secret':           None,
                          'access_token_param_name': 'token',
                          'redirect_uri':            None,
-                         'transfers_endpoint':      '/webview/transfers/accounts',
-                         'transfers_redirect_uri':  None,
-                         'types':                   None,
+                         'transfer_endpoint':       '/auth/webview/transfer',
+                         'transfer_redirect_uri':   None,
+                         'connector_capabilities':  None,
                         }
         self.settings.update(kwargs)
 
@@ -107,7 +108,7 @@ class Client(object):
         p = {}
         p['code'] = params['code']
         p['redirect_uri'] = self.settings['redirect_uri']
-        p['grant_ type'] = 'authorization_code'
+        p['grant_type'] = 'authorization_code'
 
         headers = {}
         headers['Authorization'] = 'Basic %s' % b64encode('%s:%s:' % (self.settings['client_id'], self.settings['client_secret']))
@@ -124,60 +125,58 @@ class Client(object):
 
 
 
-    def get_authentication_button(self, text):
+    def get_connect_button(self, text):
         button = """
-                  <a href="%s"
-                     style="background: #ff6100;
-                            color: #fff;
-                            font-size: 14px;
-                            font-weight: normal;
-                            display: inline-block;
-                            padding: 6px 12px;
-                            white-space: nowrap;
-                            line-height: 20px;
-                            margin-bottom: 0;
-                            text-align: center;
-                            border: 1px solid #ff6100;
-                            vertical-align: middle;
-                            text-decoration: none;
-                            border-radius: 4px">
-                         <img style="margin: 0 10px 0 0;
-                                     vertical-align: middle;
-                                     padding: 0"
-                              src="%s" /> %s
-                   </a>""" % (cgi.escape(self.get_authentication_url()),
-                              cgi.escape(self.absurl('/auth/share/button_icon.png')),
-                              cgi.escape(text))
+                <a href="%s"
+                    style="display: inline-block; background: #ff6100; padding: 8px 16px; border-radius: 4px; color: white; text-decoration: none; font: 12pt/14pt 'Roboto', sans-serif">
+                    %s
+                </a>""" % (cgi.escape(self.get_connect_url()),
+                            cgi.escape(text))
         return button
 
+    # Compatibility alias for get_connect_button
+    def get_authentication_button(self, text):
+        return self.get_connect_button(text)
+
+    def get_connect_url(self, state=''):
+        params = {'client_id':              self.settings['client_id'],
+                  'redirect_uri':           self.settings['redirect_uri'],
+                  'state':                  state,
+                  'connector_capabilities': self.settings['connector_capabilities'],
+                 }
+        return self.absurl('%s?%s' % (self.settings['connect_endpoint'], urllib.urlencode(params)))
+
+    # Compatibility alias for get_connect_url
     def get_authentication_url(self, state=''):
-        params = {'response_type':  'code',
-                  'client_id':      self.settings['client_id'],
-                  'redirect_uri':   self.settings['redirect_uri'],
-                  'state':          state,
-                  'types':          self.settings['types'],
-                 }
-        return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
+        return self.get_connect_url(state)
 
+    def get_manage_url(self, state=''):
+        response = self.fetch(self.settings['code_endpoint'])
+
+        params = {'client_id':              self.settings['client_id'],
+                  'redirect_uri':           self.settings['redirect_uri'],
+                  'state':                  state,
+                  'code':                   response['code'],
+                  'connector_capabilities': self.settings['connector_capabilities'],
+                 }
+        return self.absurl('%s?%s' % (self.settings['manage_endpoint'], urllib.urlencode(params)))
+
+    # Compatibility alias for get_manage_url
     def get_settings_url(self, state=''):
+        return self.get_manage_url(state)
+
+    def get_transfer_url(self, state=''):
         response = self.fetch(self.settings['code_endpoint'])
 
-        params = {'response_type':  'code',
-                  'client_id':      self.settings['client_id'],
-                  'redirect_uri':   self.settings['redirect_uri'],
+        params = {'client_id':      self.settings['client_id'],
+                  'redirect_uri':   self.settings['transfer_redirect_uri'],
                   'state':          state,
-                  'code':           response['code'],
-                  'types':          self.settings['types'],
                  }
-        return self.absurl('%s?%s' % (self.settings['authorization_endpoint'], urllib.urlencode(params)))
+        return self.absurl('%s?%s#%s' % (self.settings['transfer_endpoint'], urllib.urlencode(params), response['code']))
 
+    # Compatibility alias for get_transfer_url
     def get_transfers_url(self, state=''):
-        response = self.fetch(self.settings['code_endpoint'])
-
-        params = {'redirect_uri':   self.settings['transfers_redirect_uri'],
-                  'state':          state,
-                 }
-        return self.absurl('%s?%s#%s' % (self.settings['transfers_endpoint'], urllib.urlencode(params), response['code']))
+        return self.get_transfer_url(state)
 
     def get(self, resource_url, params=None):
         return self.fetch(resource_url, params)

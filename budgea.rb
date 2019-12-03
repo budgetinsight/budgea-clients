@@ -1,6 +1,6 @@
 # encoding: UTF-8
 
-# Copyright(C) 2014-2017      Budget Insight
+# Copyright(C) 2014-2020      Budget Insight
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ require 'json'
 
 module Budgea
   class Client
-    VERSION = '2.0.0'.freeze
+    VERSION = '2.1.0'.freeze
 
     attr_accessor :client_id
     attr_accessor :client_secret
@@ -68,7 +68,8 @@ module Budgea
 
     def initialize(domain, settings = {})
       @settings = {
-        authorization_endpoint: '/auth/webview/',
+        connect_endpoint: '/auth/webview/connect',
+        manage_endpoint: '/auth/webview/manage',
         token_endpoint: '/auth/token/access',
         code_endpoint: '/auth/token/code',
         base_url: "https://#{domain}/2.0",
@@ -77,8 +78,8 @@ module Budgea
         client_secret: nil,
         access_token_param_name: 'token',
         redirect_uri: nil,
-        transfers_endpoint: '/webview/transfers/accounts',
-        transfers_redirect_uri: nil
+        transfer_endpoint: '/auth/webview/transfer',
+        transfer_redirect_uri: nil
       }.merge(settings)
 
       @access_token      = @settings[:access_token] ? @settings[:access_token] : nil
@@ -105,62 +106,55 @@ module Budgea
       params[:state] || true
     end
 
-    # Method: get_authentication_url
+    # Method: get_connect_url
     #
-    # Parameter `types` can be either `providers` or `banks`
-    #   Default value is `banks`, no need to specify it in this case
+    # Parameter `connector_capabilities` can be either `bank` or `document`
+    #   Default value is `bank`, no need to specify it in this case
     #
     # Usage:
-    #   client.get_authentication_url('')                     # Add a bank
+    #   client.get_connect_url('')                                     # Add a bank
     #    OR
-    #   client.get_authentication_url('', types: 'providers') # Add a provider
+    #   client.get_connect_url('', connector_capabilities: 'document') # Add a provider
     #
-    def get_authentication_url(state = '', types: nil)
+    def get_connect_url(state = '', connector_capabilities: nil)
       query_string_params = {
         response_type: 'code',
         client_id: @settings[:client_id],
         redirect_uri: @settings[:redirect_uri],
         state: state
       }
-      query_string_params[:types] = types.to_s if types.present?
+      query_string_params[:connector_capabilities] = connector_capabilities.to_s if connector_capabilities.present?
 
       endpoint_uri_with_params(@settings[:authorization_endpoint], query_string_params)
     end
 
+    # Compatibility alias for get_connect_url
+    def get_authentication_url(state = '', connector_capabilities: nil)
+      get_connect_url(state, connector_capabilities)
+    end
+
     # Usage
-    #   client.get_authentication_button('Partager ses fournisseurs')                     # Add a bank
+    #   client.get_connect_button('Partager ses comptes')                                          # Add a bank
     #    OR
-    #   client.get_authentication_button('Partager ses fournisseurs', types: 'providers') # Add a provider
+    #   client.get_connect_button('Partager ses fournisseurs', connector_capabilities: 'document') # Add a provider
     #
-    def get_authentication_button(text, types: nil)
-      authentication_url = get_authentication_url('', types: types)
-      button_img_url = absurl('/auth/share/button_icon.png')
+    def get_connect_button(text, connector_capabilities: nil)
+      authentication_url = get_connect_url('', connector_capabilities: connector_capabilities)
 
       button = "
                 <a href='#{authentication_url}'
-                   style='background: #ff6100;
-                          color: #fff;
-                          font-size: 14px;
-                          font-weight: normal;
-                          display: inline-block;
-                          padding: 6px 12px;
-                          white-space: nowrap;
-                          line-height: 20px;
-                          margin-bottom: 0;
-                          text-align: center;
-                          border: 1px solid #ff6100;
-                          vertical-align: middle;
-                          text-decoration: none;
-                          border-radius: 4px'>
-                       <img style='margin: 0 10px 0 0;
-                                   vertical-align: middle;
-                                   padding: 0'
-                            src='#{button_img_url}' /> #{text}
-                 </a>"
+                  style=\"display: inline-block; background: #ff6100; padding: 8px 16px; border-radius: 4px; color: white; text-decoration: none; font: 12pt/14pt 'Roboto', sans-serif\">
+                  #{text}
+                </a>"
       button.html_safe
     end
 
-    def get_settings_url(state = '', types: nil)
+    # Compatibility alias for get_connect_url
+    def get_authentication_button(text, connector_capabilities: nil)
+      get_connect_button(text, connector_capabilities)
+    end
+
+    def get_manage_url(state = '', connector_capabilities: nil)
       code_endpoint_response = get(@settings[:code_endpoint])
       code_endpoint_response = JSON.parse(code_endpoint_response) if code_endpoint_response.is_a?(String)
 
@@ -171,22 +165,32 @@ module Budgea
         state: state,
         code: code_endpoint_response['code']
       }
-      query_string_params[:types] = types.to_s if types.present?
+      query_string_params[:connector_capabilities] = connector_capabilities.to_s if connector_capabilities.present?
 
       endpoint_uri_with_params(@settings[:authorization_endpoint], query_string_params)
     end
 
-    def get_transfers_url(state = '')
+    # Compatibility alias for get_manage_url
+    def get_settings_url(text, connector_capabilities: nil)
+      get_manage_url(text, connector_capabilities)
+    end
+
+    def get_transfer_url(state = '')
       code_endpoint_response = get(@settings[:code_endpoint])
       code_endpoint_response = JSON.parse(code_endpoint_response) if code_endpoint_response.is_a?(String)
 
       query_string_params = {
-        redirect_uri: @settings[:transfers_redirect_uri],
+        redirect_uri: @settings[:transfer_redirect_uri],
         state: state,
         code: code_endpoint_response['code']
       }
 
-      endpoint_uri_with_params(@settings[:transfers_endpoint], query_string_params)
+      endpoint_uri_with_params(@settings[:transfer_endpoint], query_string_params)
+    end
+
+    # Compatibility alias for get_transfer_url
+    def get_transfers_url(state = '')
+      get_transfer_url(text, connector_capabilities)
     end
 
     def get(uri, params = {})
