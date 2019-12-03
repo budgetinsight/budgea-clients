@@ -1,6 +1,6 @@
 <?php
 /*
- * Copyright(C) 2014-2018      Budget Insight
+ * Copyright(C) 2014-2020      Budget Insight
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ namespace Budgea;
 
 /**
  * Class Client
- * v 1.1.1 - 2018-07-05
+ * v 2.1.0 - 2019-12-01
  * @package Budgea
  */
 
@@ -36,9 +36,7 @@ class Client {
 			'endpoints' => [
 				'authorization' => '/auth/share/',
 				'token' => '/auth/token/access',
-				'code' => '/auth/token/code',
-				'transfers' => '/webview/transfers/accounts',
-				'settings' => ''
+				'code' => '/auth/token/code'
 			],
 			'client_id' => NULL,
 			'client_secret' => NULL,
@@ -47,8 +45,9 @@ class Client {
 		$this->settings = array_merge($this->settings, $settings);
 
 		if (isset($settings['webview']) && $settings['webview'] == 'v2'):
-			$this->settings['endpoints']['authorization'] = '/auth/webview/connect/select/';
-			$this->settings['endpoints']['settings'] = '/auth/webview/accounts';
+			$this->settings['endpoints']['connect'] = '/auth/webview/connect/';
+			$this->settings['endpoints']['manage'] = '/auth/webview/manage';
+			$this->settings['endpoints']['transfer'] = '/auth/webview/transfer';
 		endif;
 	}
 
@@ -136,77 +135,67 @@ class Client {
      * @param string $state
      * @return string
      */
-	public function getAuthenticationButton($text = 'Partager ses comptes', $state = '') {
-        $button = '<a href="' . $this->getAuthenticationUrl($state) . '"
-                    style="background: #ff6100;
-                           color: #fff;
-                           font-size: 14px;
-                           font-weight: normal;
-                           display: inline-block;
-                           padding: 6px 12px;
-                           white-space: nowrap;
-                           line-height: 20px;
-                           margin-bottom: 0;
-                           text-align: center;
-                           border: 1px solid #ff6100;
-                           vertical-align: middle;
-                           text-decoration: none;
-                           border-radius: 4px">
-                        <img style="margin: 0 10px 0 0;
-                                    vertical-align: middle;
-                                    padding: 0"
-                             src="' . htmlentities($this->absurl('/auth/share/button_icon.png')) . '" />
-                        ' . htmlentities($text) . '
-                 </a>';
+	public function getConnectButton($text, $state = '') {
+				$button = '
+					<a href="' . $this->getConnectUrl($state) . '"
+						style="display: inline-block; background: #ff6100; padding: 8px 16px; border-radius: 4px; color: white; text-decoration: none; font: 12pt/14pt \'Roboto\', sans-serif">
+						' . htmlentities($text) . '
+					</a>';
         return $button;
-    }
+		}
+		
+		/**
+		 * Compatibility alias for getConnectButton()
+		 */
+		public function getAuthenticationButton($text = 'Partager ses comptes', $state = '') {
+			return $this->getConnectButton($text, $state);
+		}
 
     /**
      * @param string $text
      * @param string $state
      * @return string
      */
-    public function getSettingsButton($text = 'Modifier ses comptes', $state = '') {
-        $button = '<a href="' . htmlentities($this->getSettingsUrl($state)) . '"
-                    style="background: #ff6100;
-                           color: #fff;
-                           font-size: 14px;
-                           font-weight: normal;
-                           display: inline-block;
-                           padding: 6px 12px;
-                           white-space: nowrap;
-                           line-height: 20px;
-                           margin-bottom: 0;
-                           text-align: center;
-                           border: 1px solid #ff6100;
-                           vertical-align: middle;
-                           text-decoration: none;
-                           border-radius: 4px">
-                        <img style="margin: 0 10px 0 0;
-                                    vertical-align: middle;
-                                    padding: 0"
-                             src="' . htmlentities($this->absurl('/auth/share/button_icon.png')) . '" />
-                        ' . htmlentities($text) . '
-                 </a>';
+    public function getManageButton($text, $state = '') {
+				$button = '
+					<a href="' . htmlentities($this->getManageUrl($state)) . '"
+						style="display: inline-block; background: #ff6100; padding: 8px 16px; border-radius: 4px; color: white; text-decoration: none; font: 12pt/14pt \'Roboto\', sans-serif">
+						' . htmlentities($text) . '
+					</a>';
         return $button;
     }
 
+		/**
+		 * Compatibility alias for getManageButton()
+		 */
+    public function getSettingsButton($text = 'Modifier ses comptes', $state = '') {
+			return $this->getManageButton($text, $state);
+		}
+
     /**
      * @param string $state
+		 * @param string $connectorCapabilities
      * @return string
      */
-    public function getAuthenticationUrl($state = '', $types = 'banks') {
+    public function getConnectUrl($state = '', $connectorCapabilities = 'bank') {
     	$params = [
     		'response_type' => 'code',
     		'client_id' => $this->settings['client_id'],
     		'state' => $state,
-        'types' => $types,
+        'connector_capabilities' => $connectorCapabilities,
     	];
 
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
 
-    	return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&'));
-    }
+    	return $this->absurl($this->settings['endpoints']['connect'] . '?' . http_build_query($params, NULL, '&'));
+		}
+		
+		/**
+		 * Compatibility alias for getConnectUrl()
+		 */
+    public function getAuthenticationUrl($state = '', $connectorCapabilities = 'bank') {
+			return $this->getConnectUrl($state, $connectorCapabilities);
+		}
 
     /**
      * @param string $state
@@ -214,8 +203,7 @@ class Client {
      * @throws AuthRequired
      * @throws InvalidAccessTokenType
      */
-
-    public function getSettingsUrl($state = '') {
+    public function getManageUrl($state = '') {
     	$response = $this->fetch($this->settings['endpoints']['code']);
     	$params = [
     		'response_type' => 'code',
@@ -225,28 +213,43 @@ class Client {
 
     	!isset($this->settings['redirect_uri']) ?: $params['redirect_uri'] = $this->settings['redirect_uri'];
 
-    	if (isset($this->settings['endpoints']['settings']) && $this->settings['endpoints']['settings'] != NULL):
-    		return $this->absurl($this->settings['endpoints']['settings'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    	if (isset($this->settings['endpoints']['manage']) && $this->settings['endpoints']['manage'] != NULL):
+    		return $this->absurl($this->settings['endpoints']['manage'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
     	else:
-    		return $this->absurl($this->settings['endpoints']['authorization'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+    		return $this->absurl($this->settings['endpoints']['connect'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
     	endif;
-    }
+		}
+		
+		/**
+		 * Compatibility alias for getManageUrl()
+		 */
+    public function getSettingsUrl($state = '') {
+			return $this->getManageUrl($state);
+		}
+
     /**
-	 * @param string $state
-	 * @return string
-	 * @throws AuthRequired
-	 * @throws InvalidAccessTokenType
-	 */
-    public function getTransfersUrl($state = '') {
+		 * @param string $state
+		 * @return string
+		 * @throws AuthRequired
+		 * @throws InvalidAccessTokenType
+		 */
+    public function getTransferUrl($state = '') {
     	$response = $this->fetch($this->settings['endpoints']['code']);
     	$params = [
     		'state' => $state
     	];
 
-    	!isset($this->settings['transfers_redirect_uri']) ?: $params['redirect_uri'] = $this->settings['transfers_redirect_uri'];
+    	!isset($this->settings['transfer_redirect_uri']) ?: $params['redirect_uri'] = $this->settings['transfer_redirect_uri'];
 
-    	return $this->absurl($this->settings['endpoints']['transfers'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
-    }
+    	return $this->absurl($this->settings['endpoints']['transfer'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
+		}
+		
+		/**
+		 * Compatibility alias for getTransferUrl()
+		 */
+    public function getTransfersUrl($state = '') {
+			return $this->getTransferUrl($state);
+		}
 
     /**
      * @param string $expand
