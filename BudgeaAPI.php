@@ -27,7 +27,7 @@ class Client {
 
 	protected $settings;
 	protected $access_token;
-	protected $access_token_type = 'Bearer';
+	protected $access_token_type = 'bearer';
 	protected $access_token_param_name = 'token';
 
 	public function __construct($domain, $settings = []) {
@@ -89,7 +89,44 @@ class Client {
     public function get($resource_url, $params = []) {
     	return $this->fetch($resource_url, $params);
     }
-    
+
+    /**
+     * @param $resource_url
+     * @param array $parameters
+     * @param array $http_headers
+     * @return array
+     * @throws AuthRequired
+     * @throws ConnectionError
+     * @throws InvalidAccessTokenType
+     */
+    public function post($resource_url, $parameters = [], $http_headers = [] ) {
+        return $this->fetch($resource_url, $parameters, 'POST', $http_headers);
+    }
+
+    /**
+     * @param $resource_url
+     * @param array $parameters
+     * @return array
+     * @throws AuthRequired
+     * @throws ConnectionError
+     * @throws InvalidAccessTokenType
+     */
+    public function put($resource_url, $parameters = []) {
+        return $this->fetch($resource_url, $parameters, 'PUT');
+    }
+
+    /**
+     * @param $resource_url
+     * @param array $parameters
+     * @return array
+     * @throws AuthRequired
+     * @throws ConnectionError
+     * @throws InvalidAccessTokenType
+     */
+    public function delete($resource_url, $parameters = []) {
+        return $this->fetch($resource_url, $parameters, 'DELETE');
+    }
+
     /**
      * @param $url
      * @return string
@@ -297,7 +334,7 @@ class Client {
     				else
     					throw new RequireParamsAsArray('You need to give parameters as array if you want to give the token within the URI.');
     				break;
-    			case 'Bearer':
+    			case 'bearer':
     				$http_headers['Authorization'] = 'Bearer ' . $this->access_token;
     				break;
     			case 'oauth':
