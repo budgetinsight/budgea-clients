@@ -1,18 +1,26 @@
 <?php
 /*
- * Copyright(C) 2014-2020      Budget Insight
+ * MIT License
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3 of the License.
+ * Copyright (c) 2014-2020 Budget Insight
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 namespace Budgea;
@@ -89,7 +97,7 @@ class Client {
     public function get($resource_url, $params = []) {
     	return $this->fetch($resource_url, $params);
     }
-    
+
     /**
      * @param $url
      * @return string
@@ -114,7 +122,7 @@ class Client {
 			return FALSE;
 		if ($state !== NULL && (!isset($_GET['state']) || $_GET['state'] != $state))
             throw new StateInvalid();
-		
+
 		$params = ['code' => $_GET['code'], 'client_id' => $this->settings['client_id'], 'client_secret' => $this->settings['client_secret']];
 		if (isset($this->settings['redirect_uri']))
 			$params['redirect_uri'] = $this->settings['redirect_uri'];
@@ -129,7 +137,7 @@ class Client {
 
 		return $state || TRUE;
 	}
-	
+
 	/**
      * @param string $text
      * @param string $state
@@ -143,7 +151,7 @@ class Client {
 					</a>';
         return $button;
 		}
-		
+
 		/**
 		 * Compatibility alias for getConnectButton()
 		 */
@@ -189,7 +197,7 @@ class Client {
 
     	return $this->absurl($this->settings['endpoints']['connect'] . '?' . http_build_query($params, NULL, '&'));
 		}
-		
+
 		/**
 		 * Compatibility alias for getConnectUrl()
 		 */
@@ -219,7 +227,7 @@ class Client {
     		return $this->absurl($this->settings['endpoints']['connect'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
     	endif;
 		}
-		
+
 		/**
 		 * Compatibility alias for getManageUrl()
 		 */
@@ -243,7 +251,7 @@ class Client {
 
     	return $this->absurl($this->settings['endpoints']['transfer'] . '?' . http_build_query($params, NULL, '&') . '#' . $response['code']);
 		}
-		
+
 		/**
 		 * Compatibility alias for getTransferUrl()
 		 */
